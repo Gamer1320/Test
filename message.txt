@@ -1,0 +1,151 @@
+import { useState, useEffect } from "react";
+import { Cookie, Globe } from "lucide-react";
+import { getCookie, setCookie, deleteCookie } from "../utils/cookieUtils";
+import { LANGUAGES, Language } from "../utils/languageUtils";
+import { useTranslation } from "../context/TranslationContext";
+import RequireCookies from "../components/RequireCookies";
+import ProtectedRoute from "../ProtectedRoute";
+import Header from "../components/Header";
+import { Toast } from "../components/Toast";
+
+const Settings = () => {
+    const { t, currentLanguage, setLanguage } = useTranslation();
+    const [cookieSettings, setCookieSettings] = useState({
+        accepted: false,
+        date: "",
+    });
+    const [showToast, setShowToast] = useState(false);
+
+    useEffect(() => {
+        const settings = getCookie("cookie_settings");
+        if (settings) {
+            try {
+                const parsedSettings = JSON.parse(settings);
+                setCookieSettings(parsedSettings);
+                if (!parsedSettings.accepted) {
+                    setShowToast(true);
+                }
+            } catch (error) {
+                console.error("Error parsing cookie settings:", error);
+            }
+        }
+    }, []);
+
+    const handleCookieAccept = () => {
+        const settings = { accepted: true, date: new Date().toISOString() };
+        setCookie("cookie_settings", JSON.stringify(settings), 365);
+        setCookieSettings(settings);
+    };
+
+    const handleCookieReject = () => {
+        deleteCookie("cookie_settings");
+        setCookieSettings({ accepted: false, date: "" });
+    };
+
+    const handleLanguageChange = (lang: Language) => {
+        setLanguage(lang);
+    };
+
+    return (
+        <div className="min-h-screen bg-navy text-white">
+            <Header />
+
+            {showToast && (
+                <Toast
+                    message="You need to accept cookies to access settings"
+                    type="warning"
+                    onClose={() => setShowToast(false)}
+                />
+            )}
+
+            <main className="container mx-auto px-4 py-8 max-w-4xl">
+                <h1 className="text-3xl font-bold mb-8 mt-48">{t("settings.title")}</h1>
+
+                <div className="bg-yellow-600/20 border border-yellow-600/30 rounded-lg p-4 mb-8">
+                    <p className="text-yellow-200">{t("settings.translationNotice")}</p>
+                </div>
+
+                <div className="space-y-8">
+                    {/* Cookie Settings */}
+                    <section className="bg-gray-900 rounded-xl p-6 border border-gray-800 shadow-lg">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Cookie className="w-6 h-6 text-teal-400" />
+                            <h2 className="text-xl font-semibold">{t("settings.cookiePreferences.title")}</h2>
+                        </div>
+
+                        <div className="space-y-4">
+                            <p className="text-gray-300">{t("settings.cookiePreferences.description")}</p>
+
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={handleCookieAccept}
+                                    className={`px-4 py-2 rounded-lg transition-all ${
+                                        cookieSettings.accepted
+                                            ? "bg-teal-600 text-white"
+                                            : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                                    }`}>
+                                    {t("settings.cookiePreferences.acceptButton")}
+                                </button>
+                                <button
+                                    onClick={handleCookieReject}
+                                    className={`px-4 py-2 rounded-lg transition-all ${
+                                        !cookieSettings.accepted
+                                            ? "bg-red-600/90 text-white"
+                                            : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                                    }`}>
+                                    {t("settings.cookiePreferences.rejectButton")}
+                                </button>
+                            </div>
+
+                            {cookieSettings.accepted && (
+                                <p className="text-sm text-gray-400">
+                                    {t("settings.cookiePreferences.acceptedMessage").replace(
+                                        "{date}",
+                                        new Date(cookieSettings.date).toLocaleDateString()
+                                    )}
+                                </p>
+                            )}
+                        </div>
+                    </section>
+
+                    {/* Language Settings */}
+                    <section className="bg-gray-900 rounded-xl p-6 border border-gray-800 shadow-lg">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Globe className="w-6 h-6 text-teal-400" />
+                            <h2 className="text-xl font-semibold">{t("settings.language.title")}</h2>
+                        </div>
+
+                        <div className="space-y-4">
+                            <p className="text-gray-300">{t("settings.language.description")}</p>
+
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                {LANGUAGES.map((lang) => (
+                                    <button
+                                        key={lang.code}
+                                        onClick={() => handleLanguageChange(lang.code)}
+                                        className={`px-4 py-2 rounded-lg transition-all ${
+                                            currentLanguage === lang.code
+                                                ? "bg-teal-600 text-white"
+                                                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                                        }`}>
+                                        {lang.nativeName}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+    );
+};
+
+export default function ProtectedSettings() {
+    return (
+        <ProtectedRoute>
+            <RequireCookies>
+                <Settings />
+            </RequireCookies>
+        </ProtectedRoute>
+    );
+}
